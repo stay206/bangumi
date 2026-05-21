@@ -18,7 +18,7 @@ $(document).ready(function() {
     var chitanda_is_associating = false;
     var currentUrl = window.location.href;
     var isAddRelatedPage = currentUrl.match(/subject\/\d+\/add_related\/character/);
-    var isSubjectPage = !isAddRelatedPage && currentUrl.match(/subject\/\d+/);
+    var isSubjectPage = !isAddRelatedPage && currentUrl.match(/subject\/\d+$/);
     
     function isDarkMode() {
         const dataTheme = document.documentElement.getAttribute('data-theme');
@@ -1545,11 +1545,9 @@ $(document).ready(function() {
     $('#btn_ctd_fetch_related').on('click', chitanda_FetchRelatedSubjects);
     
     function adaptToBangumiBatchPanel() {
+        if (!isSubjectPage) return;
         if (document.getElementById('bgm-batch-modal')) {
-
-            
             if (document.getElementById('chitanda_wiki_panel')) {
-
                 return true;
             }
             
@@ -1806,7 +1804,7 @@ $(document).ready(function() {
                             document.getElementById('ctd_wiki_search_results_modal').style.display = 'none';
                         }
                     })
-                    .catch(error => {
+                    。catch(error => {
                         document.getElementById('ctd_wiki_subject_info_modal').textContent = '搜索出错，请检查网络连接';
                         document.getElementById('ctd_wiki_search_results_modal').style.display = 'none';
                     });
