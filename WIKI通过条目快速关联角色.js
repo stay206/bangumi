@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WIKI通过条目快速关联角色
-// @version      1.4.0
+// @version      1.4.1
 // @description  通过条目快速关联角色
 // @author       Sumora、chitanda
 // @match        http*://bgm.tv/subject/*/add_related/character
@@ -243,12 +243,12 @@ $(document).ready(function() {
                         <span class="tip">
                             <input type="hidden" name="infoArr[${characterIndex}][crt_id]" value="${character_id}">
                             类型: <select name="infoArr[${characterIndex}][crt_type]" data-adjusted="true">
+                                <option value="1" selected="">主角</option>
+                                <option value="2">配角</option>
+                                <option value="3">客串</option>
                                 <option value="4">闲角</option>
                                 <option value="5">旁白</option>
                                 <option value="6">声库</option>
-                                <option value="3">K - 客串</option>
-                                <option value="2">P - 配角</option>
-                                <option value="1" selected="">Z - 主角</option>
                             </select>
                             <span class="tip_j"> 参与：</span>
                             <input type="text" name="infoArr[${characterIndex}][crt_appear_eps]" class="inputtext medium" value="">
@@ -291,6 +291,7 @@ $(document).ready(function() {
                     }
                 }
             } else if (isSubjectPage) {
+                const colors = getThemeColors();
                 const bgmBatchModal = document.getElementById('bgm-batch-modal');
                 if (bgmBatchModal) {
                     const newCrtIdInput = document.getElementById('new-crt-id');
@@ -300,6 +301,9 @@ $(document).ready(function() {
                         const existingRow = document.querySelector(`tr[data-crt-id="${character_id}"]`);
                         
                         if (existingRow) {
+                            var addedModal = document.querySelector('.chitanda_character_added_modal');
+                            var hasNewCv = false;
+                            
                             if (character_info.cvIds && character_info.cvIds.length > 0) {
                                 character_info.cvIds.forEach(function(cvId, cvIndex) {
                                     const existingCvInputs = existingRow.querySelectorAll('.cv-id');
@@ -312,9 +316,16 @@ $(document).ready(function() {
                                     });
                                     
                                     if (!cvExists) {
+                                        hasNewCv = true;
                                         const addCvBtn = existingRow.querySelector('.add-cv-btn');
                                         if (addCvBtn) {
                                             addCvBtn.click();
+                                            
+                                            var cvName = character_info.cvNames && character_info.cvNames[cvIndex] ? character_info.cvNames[cvIndex] : cvId;
+                                            if (addedModal) {
+                                                addedModal.innerHTML += `<span style="color: ${colors.primary};">[${character_id}] ${character_info.name || ''} CV: ${cvName} (已存在，CV关联成功) </span>`;
+                                                addedModal.scrollTop = addedModal.scrollHeight;
+                                            }
                                             
                                             setTimeout(function() {
                                                 const newCvInputs = existingRow.querySelectorAll('.cv-id');
@@ -326,6 +337,11 @@ $(document).ready(function() {
                                         }
                                     }
                                 });
+                                
+                                if (!hasNewCv && addedModal) {
+                                    addedModal.innerHTML += `<span style="color: #999;">[${character_id}] ${character_info.name || ''} (已存在，跳过) </span>`;
+                                    addedModal.scrollTop = addedModal.scrollHeight;
+                                }
                             } else {
                                 const existingCvInputs = existingRow.querySelectorAll('.cv-id');
                                 let hasCv = false;
@@ -340,7 +356,14 @@ $(document).ready(function() {
                                     const addCvBtn = existingRow.querySelector('.add-cv-btn');
                                     if (addCvBtn) {
                                         addCvBtn.click();
+                                        if (addedModal) {
+                                            addedModal.innerHTML += `<span style="color: ${colors.primary};">[${character_id}] ${character_info.name || ''} (已存在，添加成功) </span>`;
+                                            addedModal.scrollTop = addedModal.scrollHeight;
+                                        }
                                     }
+                                } else if (addedModal) {
+                                    addedModal.innerHTML += `<span style="color: #999;">[${character_id}] ${character_info.name || ''} (已存在，跳过) </span>`;
+                                    addedModal.scrollTop = addedModal.scrollHeight;
                                 }
                             }
                         } else {
@@ -353,6 +376,13 @@ $(document).ready(function() {
                                 }
                                 
                                 bgmBtnAddRow.click();
+                                
+                                var addedModal = document.querySelector('.chitanda_character_added_modal');
+                                if (addedModal) {
+                                    var cvName = character_info.cvNames && character_info.cvNames[0] ? character_info.cvNames[0] : character_info.cvIds[0];
+                                    addedModal.innerHTML += `<span style="color: ${colors.primary};">[${character_id}] ${character_info.name || ''} CV: ${cvName} (添加成功) </span>`;
+                                    addedModal.scrollTop = addedModal.scrollHeight;
+                                }
                                 
                                 setTimeout(function() {
                                     const newRow = document.querySelector(`tr[data-crt-id="${character_id}"]`);
@@ -369,6 +399,12 @@ $(document).ready(function() {
                                                     const lastInput = cvInputs[cvInputs.length - 1];
                                                     if (lastInput) {
                                                         lastInput.value = cvId;
+                                                        var addedModal = document.querySelector('.chitanda_character_added_modal');
+                                                        if (addedModal) {
+                                                            var cvName = character_info.cvNames && character_info.cvNames[i] ? character_info.cvNames[i] : cvId;
+                                                            addedModal.innerHTML += `<span style="color: ${colors.primary};">[${character_id}] ${character_info.name || ''} CV: ${cvName} (CV关联成功) </span>`;
+                                                            addedModal.scrollTop = addedModal.scrollHeight;
+                                                        }
                                                     }
                                                 }, 500);
                                             }
@@ -384,6 +420,12 @@ $(document).ready(function() {
                                 }
                                 
                                 bgmBtnAddRow.click();
+                                
+                                var addedModal = document.querySelector('.chitanda_character_added_modal');
+                                if (addedModal) {
+                                    addedModal.innerHTML += `<span style="color: ${colors.primary};">[${character_id}] ${character_info.name || ''} (添加成功) </span>`;
+                                    addedModal.scrollTop = addedModal.scrollHeight;
+                                }
                             }
                         }
                         
@@ -590,6 +632,7 @@ $(document).ready(function() {
                         } else {
                             $('#chitanda_fetch_status').text('未找到角色');
                         }
+
                         showCharacterSelection(character_info, subject_id, subject_name, coverImage);
                     } catch (error) {
                         $('#chitanda_fetch_status').text('处理角色列表时出错');
@@ -615,7 +658,7 @@ $(document).ready(function() {
         var colors = getThemeColors();
         
         var selectionHtml = `
-            <div id="chitanda_character_selection" style="margin: 2px 0 10px 0; padding: 10px; border: 1px solid ${colors.border}; background: ${colors.bg}; max-height: 400px; overflow-y: auto;">
+            <div id="chitanda_character_selection" style="margin: 2px 0 10px 0; padding: 10px; border: 1px solid ${colors.border}; background: ${colors.bg}; max-height: 400px; overflow-y: auto; width: 318.34px;">
                 <ul id="chitanda_subjectList" class="subjectList ajaxSubjectList" style="display: block; margin: 0; padding: 0; list-style: none;">
                     <li class="clearit" style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid ${colors.border};">
                         <a href="/subject/${subjectId}" class="avatar h" style="display: block; float: left; margin-right: 10px;">
@@ -635,7 +678,14 @@ $(document).ready(function() {
         `;
         
         if (characters && characters.length > 0) {
+            let existIds = [];
+            $('#crtRelateSubjects input[name*="crt_id"]').each(function(){
+              existIds.push(String($(this).val()));
+            });
+            
             characters.forEach(function(character, index) {
+                var isDuplicate = existIds.includes(String(character.id));
+                
                 var image = character.image || '/img/info_only.png';
                 if (image && !image.startsWith('http') && !image.startsWith('/')) {
                     image = 'https:' + image;
@@ -669,13 +719,13 @@ $(document).ready(function() {
                 }
                 
                 selectionHtml += `
-                    <li class="clearit" style="margin: 3px 0; padding: 5px; border-bottom: 1px solid ${colors.border}; display: flex; align-items: center; cursor: pointer;" data-char-id="${character.id}" data-cv-ids="${character.cvIds ? character.cvIds.join(',') : ''}" data-cv-names="${character.cvNames ? character.cvNames.join('|') : ''}" data-index="${index}">
+                    <li class="clearit" style="margin: 3px 0; padding: 5px; border-bottom: 1px solid ${colors.border}; display: flex; align-items: center; cursor: pointer; ${isDuplicate ? 'display: none;' : ''}" data-char-id="${character.id}" data-cv-ids="${character.cvIds ? character.cvIds.join(',') : ''}" data-cv-names="${character.cvNames ? character.cvNames.join('|') : ''}" data-index="${index}" data-is-duplicate="${isDuplicate}">
                         <a href="#" class="avatar" style="display: block; margin-right: 8px; flex-shrink: 0;">
                             <img src="${image}" class="avatar ll" width="36" height="36" style="border-radius: 4px;">
                         </a>
                         <div class="inner" style="flex: 1; min-width: 0;">
                             <p style="margin: 0; font-size: 13px; line-height: 1.4;">
-                                <span style="font-weight: 500; color: ${colors.text};">${character.name}</span>
+                                <span style="font-weight: 500; color: ${colors.text};">${character.name}${isDuplicate ? ' <span style="color: #999; font-size: 11px;">(已存在)</span>' : ''}</span>
                             </p>
                             <p style="margin: 2px 0 0 0; font-size: 11px; color: ${colors.subText}; line-height: 1.3;">
                                 <span>bgm_id=${character.id}</span>
@@ -698,12 +748,178 @@ $(document).ready(function() {
             </div>
         `;
         
-        $('#chitanda_character_selection').remove();
+        $('#chitanda_character_selection, #chitanda_character_selection_modal').remove();
+        
+        var targetContainer, targetListId, targetSearchId;
         
         if (isSubjectPage) {
             const relatedSubjectsModal = document.getElementById('ctd_wiki_related_subjects_modal');
             if (relatedSubjectsModal) {
-                $(relatedSubjectsModal).after(selectionHtml);
+                let modalHtml = `
+                    <div id="chitanda_character_selection_modal" style="margin: 5px 0; padding: 5px; border: 1px solid ${colors.border}; background: ${colors.bg}; max-height: 200px; overflow-y: auto; width: 100%; box-sizing: border-box;">
+                        <ul id="chitanda_subjectList_modal" class="subjectList ajaxSubjectList" style="display: block; margin: 0; padding: 0; list-style: none;">
+                            <li class="clearit" style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid ${colors.border};">
+                                <a href="/subject/${subjectId}" class="avatar h" style="display: block; float: left; margin-right: 10px;">
+                                    <img src="${coverImage || '//lain.bgm.tv/img/no_icon_subject.png'}" class="avatar ll" width="40" style="border-radius: 4px;">
+                                </a>
+                                <div class="inner" style="overflow: hidden;">
+                                    <p style="margin: 0; font-size: 14px;">
+                                        <a href="/subject/${subjectId}" class="avatar h" style="font-weight: bold; color: ${colors.text};">${subjectName}</a>
+                                    </p>
+                                    <small class="tip" style="color: ${colors.subText}; font-size: 12px;">${subjectName}</small>
+                                </div>
+                            </li>
+                            <li class="sub_title" style="font-weight: bold; margin: 10px 0; padding: 5px 0; border-top: 1px solid ${colors.border}; border-bottom: 1px solid ${colors.border}; font-size: 14px; color: ${colors.text};">选择作品的角色</li>
+                            <li class="clearit" style="margin: 5px 0; padding: 5px; border-bottom: 1px solid ${colors.border};">
+                                <input type="text" id="chitanda_character_search_modal" placeholder="搜索角色..." style="width: 100%; padding: 4px; border: 1px solid ${colors.border}; border-radius: 4px; background: ${colors.inputBg}; color: ${colors.text}; font-size: 12px; box-sizing: border-box;" oninput="chitanda_filter_characters_modal(this.value)">
+                            </li>
+                `;
+                
+                if (characters && characters.length > 0) {
+                    let existIds = [];
+                    $('#crtRelateSubjects input[name*="crt_id"], #bgm-relation-table tr[data-crt-id]').each(function(){
+                      existIds.push(String($(this).val() || $(this).data('crt-id')));
+                    });
+                    
+                    characters.forEach(function(character, index) {
+                        var isDuplicate = existIds.includes(String(character.id));
+                        var image = character.image || '/img/info_only.png';
+                        if (image && !image.startsWith('http') && !image.startsWith('/')) {
+                            image = 'https:' + image;
+                        }
+                        
+                        var cvSelectionHtml = '';
+                        if (isSubjectPage && character.cvIds && character.cvIds.length > 0) {
+                            cvSelectionHtml = '<div style="margin-top: 4px;">';
+                            cvSelectionHtml += `
+                                <label style="display: inline-block; margin-right: 8px; font-size: 11px; color: ${colors.subText}; cursor: pointer;">
+                                    <input type="checkbox" name="chitanda_cv_modal_${index}_none" value="" checked style="margin-right: 2px;">
+                                    不关联CV
+                                </label>
+                            `;
+                            character.cvIds.forEach(function(cvId, i) {
+                                var cvName = character.cvNames[i] || '未知';
+                                cvSelectionHtml += `
+                                    <label style="display: inline-block; margin-right: 8px; font-size: 11px; color: ${colors.subText}; cursor: pointer;">
+                                        <input type="checkbox" name="chitanda_cv_modal_${index}_${i}" value="${cvId}" style="margin-right: 2px;">
+                                        ${cvName} (${cvId})
+                                    </label>
+                                `;
+                            });
+                            cvSelectionHtml += '</div>';
+                        } else if (character.cvIds && character.cvIds.length > 0) {
+                            var cvList = character.cvIds.map(function(cvId, i) {
+                                var cvName = character.cvNames[i] || '未知';
+                                return `${cvName} (${cvId})`;
+                            }).join(', ');
+                            cvSelectionHtml = `<p style="margin: 2px 0 0 0; font-size: 11px; color: ${colors.subText}; line-height: 1.3;"><span style="margin-left: 8px;">CV: ${cvList}</span></p>`;
+                        }
+                        
+                        modalHtml += `
+                            <li class="clearit" style="margin: 3px 0; padding: 5px; border-bottom: 1px solid ${colors.border}; display: flex; align-items: center; cursor: pointer; ${isDuplicate ? 'display: none;' : ''}" data-char-id="${character.id}" data-cv-ids="${character.cvIds ? character.cvIds.join(',') : ''}" data-cv-names="${character.cvNames ? character.cvNames.join('|') : ''}" data-index="${index}" data-is-duplicate="${isDuplicate}">
+                                <a href="#" class="avatar" style="display: block; margin-right: 8px; flex-shrink: 0;">
+                                    <img src="${image}" class="avatar ll" width="36" height="36" style="border-radius: 4px;">
+                                </a>
+                                <div class="inner" style="flex: 1; min-width: 0;">
+                                    <p style="margin: 0; font-size: 13px; line-height: 1.4;">
+                                        <span style="font-weight: 500; color: ${colors.text};">${character.name}${isDuplicate ? ' <span style="color: #999; font-size: 11px;">(已存在)</span>' : ''}</span>
+                                    </p>
+                                    <p style="margin: 2px 0 0 0; font-size: 11px; color: ${colors.subText}; line-height: 1.3;">
+                                        <span>bgm_id=${character.id}</span>
+                                    </p>
+                                    ${cvSelectionHtml}
+                                </div>
+                            </li>
+                        `;
+                    });
+                } else {
+                    modalHtml += `
+                        <li class="clearit" style="margin: 10px 0; padding: 10px; text-align: center; color: ${colors.subText};">
+                            此条目未关联角色
+                        </li>
+                    `;
+                }
+                
+                modalHtml += `
+                        </ul>
+                    </div>
+                `;
+                
+                $(relatedSubjectsModal).after(modalHtml);
+                
+                $(document).on('click', '#chitanda_character_selection_modal input[type="checkbox"], #chitanda_character_selection_modal label', function(e) {
+                    e.stopPropagation(); 
+                });
+                
+                $(document).on('change', '#chitanda_character_selection_modal input[type="checkbox"]', function() {
+                    var $this = $(this);
+                    var $parent = $this.closest('li');
+                    var $checkboxes = $parent.find('input[type="checkbox"]');
+                    
+                    if ($this.attr('name').includes('_none') && $this.is(':checked')) {
+                        $checkboxes.not('[name*="_none"]').prop('checked', false);
+                    } else if (!$this.attr('name').includes('_none') && $this.is(':checked')) {
+                        $parent.find('input[type="checkbox"][name*="_none"]').prop('checked', false);
+                    }
+                });
+                
+                $(document).on('mouseenter', '#chitanda_character_selection_modal li.clearit[data-char-id]', function() {
+                    var colors = getThemeColors();
+                    $(this).css('background', colors.hoverBg);
+                });
+                
+                $(document).on('mouseleave', '#chitanda_character_selection_modal li.clearit[data-char-id]', function() {
+                    $(this).css('background', 'transparent');
+                });
+                
+                $(document).on('click', '#chitanda_character_selection_modal li.clearit[data-char-id]', function(e) {
+                    e.preventDefault();
+                    
+                    var charId = $(this).data('char-id');
+                    var cvIdsStr = $(this).data('cv-ids');
+                    var cvNamesStr = $(this).data('cv-names');
+                    
+                    if (!charId) return;
+                    
+                    var cvIds = [];
+                    var associateCv = false;
+                    
+                    if (cvIdsStr) {
+                        var $selectedCheckboxes = $(this).find('input[type="checkbox"]:checked');
+                        if ($selectedCheckboxes.length > 0) {
+                            $selectedCheckboxes.each(function() {
+                                var value = $(this).val();
+                                if (value) {
+                                    cvIds.push(value);
+                                }
+                            });
+                            associateCv = cvIds.length > 0;
+                        }
+                    }
+                    
+                    var charName = $(this).find('span[style*="font-weight: 500"]').text().trim();
+                    
+                    var selectedCharacter = {
+                        id: charId,
+                        name: charName,
+                        cvIds: cvIds,
+                        associateCv: associateCv
+                    };
+                    
+                    chitanda_association_queue.push(selectedCharacter);
+                    
+                    $(this).remove();
+                    
+                    if (!chitanda_is_associating) {
+                        setTimeout(function() {
+                            chitanda_process_association_queue();
+                        }, 100);
+                    } else {
+                        $('.chitanda_all_num').text(chitanda_association_queue.length + 1);
+                    }
+                });
+                
+                return;
             } else {
                 const wikiPanel = document.getElementById('chitanda_wiki_panel');
                 if (wikiPanel) {
@@ -831,6 +1047,44 @@ $(document).ready(function() {
         });
     }
     
+    window.chitanda_filter_characters_modal = function(keyword) {
+        var searchTerm = keyword.toLowerCase().trim();
+        var allItems = document.querySelectorAll('#chitanda_subjectList_modal li.clearit');
+        var parentList = document.getElementById('chitanda_subjectList_modal');
+        
+        if (!parentList) return;
+        
+        if (searchTerm === '') {
+            parentList.style.display = 'block';
+            allItems.forEach(function(item) {
+                item.style.display = '';
+                item.style.order = '';
+            });
+            return;
+        }
+        
+        parentList.style.display = 'flex';
+        parentList.style.flexDirection = 'column';
+        
+        allItems.forEach(function(item) {
+            if (item.querySelector('#chitanda_character_search_modal')) {
+                item.style.display = '';
+                item.style.order = '0';
+                return;
+            }
+            
+            var itemText = item.textContent.toLowerCase();
+            
+            if (itemText.includes(searchTerm)) {
+                item.style.display = '';
+                item.style.order = '1';
+            } else {
+                item.style.display = 'none';
+                item.style.order = '2';
+            }
+        });
+    }
+    
     if (typeof genCharacterList === 'undefined') {
         window.genCharacterList = function(subject, index, type) {
             var html = '<li>';
@@ -912,6 +1166,10 @@ $(document).ready(function() {
                 <h3 style="margin: 10px 0; color: ${colors.text};">显示关联条目</h3>
                 <div style="margin: 5px;padding:5px 0; background: ${colors.inputBg}; width: 318.34px;">
                     <input type="button" id="btn_ctd_fetch_related" class="searchBtnL" value="显示关联条目" style="padding: 5px 10px;">
+                    <label style="display: inline-block; margin-left: 5px; cursor: pointer;">
+                        <input type="checkbox" id="chitanda_deduplicate" checked style="margin-right: 3px;">
+                        <span style="font-size: 12px; color: ${colors.text};" title="隐藏重复角色">去重</span>
+                    </label>
                     <span id="chitanda_related_status" style="margin-left: 5px; font-size: 12px;"></span>
                 </div>
                 <div id="chitanda_related_subjects" style="margin: 10px 0; max-height: 100px; overflow-y: auto; border: 1px solid ${colors.border}; padding: 10px; width: 298.34px;">
@@ -946,9 +1204,13 @@ $(document).ready(function() {
                 <h3 style="margin: 10px 0; color: ${colors.text};">显示关联条目</h3>
                 <div style="margin: 5px;padding:5px 0; background: ${colors.inputBg};">
                     <input type="button" id="btn_ctd_fetch_related" class="searchBtnL" value="显示关联条目" style="padding: 5px 10px;">
+                    <label style="display: inline-block; margin-left: 5px; cursor: pointer;">
+                        <input type="checkbox" id="chitanda_deduplicate" checked style="margin-right: 3px;">
+                        <span style="font-size: 12px; color: ${colors.text};" title="隐藏重复角色">去重</span>
+                    </label>
                     <span id="chitanda_related_status" style="margin-left: 5px; font-size: 12px;"></span>
                 </div>
-                <div id="chitanda_related_subjects" style="margin: 10px 0; max-height: 100px; overflow-y: auto; border: 1px solid ${colors.border}; padding: 10px;">
+                <div id="chitanda_related_subjects" style="margin: 10px 0; max-height: 100px; overflow-y: auto; border: 1px solid ${colors.border}; padding: 10px; width: 298.34px;">
                     <!-- 关联条目列表将显示在这里 -->
                 </div>
             </div>
@@ -957,6 +1219,21 @@ $(document).ready(function() {
     
     if (isAddRelatedPage || isSubjectPage) {
         $('#btn_ctd_fetch_related').on('click', chitanda_FetchRelatedSubjects);
+        
+        $(document).on('change', '#chitanda_deduplicate, #ctd_wiki_deduplicate_modal', function() {
+             var isChecked = $(this).is(':checked');
+             var targetList = $(this).closest('.chitanda_character_wrapper, #chitanda_wiki_panel, #chitanda_character_selection_modal').find('li.clearit[data-char-id][data-is-duplicate="true"]');
+             if (targetList.length === 0) {
+                 targetList = $('#chitanda_subjectList li.clearit[data-char-id][data-is-duplicate="true"], #chitanda_subjectList_modal li.clearit[data-char-id][data-is-duplicate="true"]');
+             }
+             targetList.each(function() {
+                 if (isChecked) {
+                     $(this).hide();
+                 } else {
+                     $(this).show();
+                 }
+             });
+         });
         
         $('#btn_ctd_fetch_characters').on('click', function() {
             var inputVal = $('#chitanda_related_subject_id').val().trim();
@@ -1602,6 +1879,8 @@ $(document).ready(function() {
                         <div class="chitanda_progress" style="margin: 10px 0;font-size:12px;font-weight:bold; color: ${colors.primary};">
                             添加进度：<span class="chitanda_current_idx">0</span>/<span class="chitanda_all_num">0</span>
                         </div>
+                        <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px;">已添加：</h4>
+                        <div class="chitanda_character_added_modal" style="min-height: 30px; max-height: 60px; overflow-y: auto; margin-bottom: 10px; padding: 5px; border: 1px dashed ${colors.border}; border-radius: 4px; width: 100%; box-sizing: border-box;"></div>
                         <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px;">添加失败：</h4>
                         <div class="chitanda_character_not_found" style="min-height:30px; margin-bottom: 10px;"></div>
                         <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px;">从条目获取角色</h4>
@@ -1624,6 +1903,10 @@ $(document).ready(function() {
                         <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px; flex-shrink: 0;">显示关联条目</h4>
                         <div style="margin: 5px 0; padding: 5px; background: ${colors.inputBg}; flex-shrink: 0;">
                             <input type="button" id="ctd_wiki_btn_fetch_related_modal" class="bgm-btn-pink" value="显示关联条目" style="padding: 3px 10px; font-size: 12px;">
+                            <label style="display: inline-block; margin-left: 5px; cursor: pointer;">
+                                <input type="checkbox" id="ctd_wiki_deduplicate_modal" checked style="margin-right: 3px;">
+                                <span style="font-size: 12px; color: ${colors.text};" title="隐藏重复角色">去重</span>
+                            </label>
                             <span id="ctd_wiki_related_status_modal" style="margin-left: 5px; font-size: 11px;"></span>
                         </div>
                         <div id="ctd_wiki_related_subjects_modal" style="margin: 5px 0; max-height: 100px; overflow-y: auto; border: 1px solid ${colors.border}; padding: 10px; background: ${colors.bg};">
