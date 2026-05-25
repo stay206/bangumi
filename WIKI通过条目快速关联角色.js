@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WIKI通过条目快速关联角色
-// @version      1.4.1
+// @version      1.5.0
 // @description  通过条目快速关联角色
 // @author       Sumora、chitanda
 // @match        http*://bgm.tv/subject/*/add_related/character
