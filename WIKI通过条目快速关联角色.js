@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WIKI通过条目快速关联角色
-// @version      1.5.0
+// @version      1.5.1
 // @description  通过条目快速关联角色
 // @author       Sumora、chitanda
 // @match        http*://bgm.tv/subject/*/add_related/character
@@ -658,7 +658,7 @@ $(document).ready(function() {
         var colors = getThemeColors();
         
         var selectionHtml = `
-            <div id="chitanda_character_selection" style="margin: 2px 0 10px 0; padding: 10px; border: 1px solid ${colors.border}; background: ${colors.bg}; max-height: 400px; overflow-y: auto; width: 318.34px;">
+            <div id="chitanda_character_selection" style="margin: 2px 0 10px 0; padding: 10px; border: 1px solid ${colors.border}; background: ${colors.bg}; max-height: 300px; overflow-y: auto; width: 318.34px;">
                 <ul id="chitanda_subjectList" class="subjectList ajaxSubjectList" style="display: block; margin: 0; padding: 0; list-style: none;">
                     <li class="clearit" style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid ${colors.border};">
                         <a href="/subject/${subjectId}" class="avatar h" style="display: block; float: left; margin-right: 10px;">
@@ -1137,18 +1137,47 @@ $(document).ready(function() {
     }
 
     setupThemeObserver();
+    // 从URL中提取条目ID
+    function chitanda_extract_subject_id(input) {
+        if (!input) return input;
+        var urlPattern = /https?:\/\/(?:bgm\.tv|bangumi\.tv|chii\.in)\/subject\/(\d+)/;
+        var match = input.match(urlPattern);
+        if (match) {
+            return match[1];
+        }
+        return input;
+    }
+
+    // 添加折叠/展开功能
+    $(document).on('click', '.chitanda_toggle_btn', function() {
+        var targetId = $(this).data('target');
+        var target = $('#' + targetId);
+        if (target.is(':visible')) {
+            target.hide();
+            $(this).text('▼');
+            $(this).attr('title', '展开');
+        } else {
+            target.show();
+            $(this).text('▲');
+            $(this).attr('title', '折叠');
+        }
+    });
+
     
     if (isAddRelatedPage) {
         var colors = getThemeColors();
         $('.subjectListWrapper').after(`
             <div class="chitanda_character_wrapper">
-                <div class="chitanda_progress" style="margin: 15px 0;font-size:20px;font-weight:bold; color: ${colors.primary};">
+                <div class="chitanda_progress" style="margin: 15px 0;font-size:20px;font-weight:bold; color: ${colors.primary}; display: flex; align-items: center; gap: 8px;">
                     添加进度：<span class="chitanda_current_idx">0</span>/<span class="chitanda_all_num">0</span>
+                    <span class="chitanda_toggle_btn" style="cursor: pointer; font-size: 16px; user-select: none;" title="展开" data-target="chitanda_collapsible_added">▼</span>
                 </div>
-                <h3 style="margin: 10px 0; color: ${colors.text};">已添加的角色：</h3>
-                <div class="chitanda_character_added" style="min-height:30px; max-height: 30px; overflow-y: auto; margin-bottom: 10px; padding: 5px; border: 1px dashed ${colors.border}; border-radius: 4px; width: 318.34px;"></div>
-                <h3 style="margin: 10px 0; color: ${colors.text};">添加失败：</h3>
-                <div class="chitanda_character_not_found" style="min-height:40px"></div>
+                <div id="chitanda_collapsible_added" style="display: none;">
+                    <h3 style="margin: 10px 0; color: ${colors.text};">已添加的角色：</h3>
+                    <div class="chitanda_character_added" style="min-height:30px; max-height: 30px; overflow-y: auto; margin-bottom: 10px; padding: 5px; border: 1px dashed ${colors.border}; border-radius: 4px; width: 318.34px;"></div>
+                    <h3 style="margin: 10px 0; color: ${colors.text};">添加失败：</h3>
+                    <div class="chitanda_character_not_found" style="min-height:40px"></div>
+                </div>
                 <hr style="margin: 20px 0; border-color: ${colors.border};">
                 <h3 style="margin: 10px 0; color: ${colors.text};">从条目获取角色</h3>
                 <div style="margin: 5px;padding:5px 0; background: ${colors.inputBg}; width: 318.34px;">
@@ -1182,11 +1211,14 @@ $(document).ready(function() {
         $('#columnInSubjectA').append(`
             <div class="chitanda_character_wrapper" style="margin-top: 20px; padding: 10px; border: 1px solid ${colors.border}; background: ${colors.bg};">
                 <h2 class="section_title" style="margin-bottom: 15px; color: ${colors.text};">WIKI批量关联角色</h2>
-                <div class="chitanda_progress" style="margin: 15px 0;font-size:16px;font-weight:bold; color: ${colors.primary};">
+                <div class="chitanda_progress" style="margin: 15px 0;font-size:16px;font-weight:bold; color: ${colors.primary}; display: flex; align-items: center; gap: 8px;">
                     添加进度：<span class="chitanda_current_idx">0</span>/<span class="chitanda_all_num">0</span>
+                    <span class="chitanda_toggle_btn" style="cursor: pointer; font-size: 16px; user-select: none;" title="展开" data-target="chitanda_collapsible_subject">▼</span>
                 </div>
-                <h3 style="margin: 10px 0; color: ${colors.text};">添加失败：</h3>
-                <div class="chitanda_character_not_found" style="min-height:40px"></div>
+                <div id="chitanda_collapsible_subject" style="display: none;">
+                    <h3 style="margin: 10px 0; color: ${colors.text};">添加失败：</h3>
+                    <div class="chitanda_character_not_found" style="min-height:40px"></div>
+                </div>
                 <hr style="margin: 20px 0; border-color: ${colors.border};">
                 <h3 style="margin: 10px 0; color: ${colors.text};">从条目获取角色</h3>
                 <div style="margin: 5px;padding:5px 0; background: ${colors.inputBg};">
@@ -1238,6 +1270,9 @@ $(document).ready(function() {
         $('#btn_ctd_fetch_characters').on('click', function() {
             var inputVal = $('#chitanda_related_subject_id').val().trim();
             var searchType = $('#chitanda_search_type').val();
+            
+            // 自动从URL中提取条目ID
+            inputVal = chitanda_extract_subject_id(inputVal);
             
             if (!inputVal) {
                 alert('请输入关联条目ID或名称');
@@ -1876,13 +1911,16 @@ $(document).ready(function() {
                 wikiPanel.innerHTML = `
                     <div style="display: flex; flex-direction: column; height: 100%;">
                         <h3 style="margin-top: 0; color: ${colors.primary}; font-size: 14px;">关联条目角色</h3>
-                        <div class="chitanda_progress" style="margin: 10px 0;font-size:12px;font-weight:bold; color: ${colors.primary};">
+                        <div class="chitanda_progress" style="margin: 10px 0;font-size:12px;font-weight:bold; color: ${colors.primary}; display: flex; align-items: center; gap: 8px;">
                             添加进度：<span class="chitanda_current_idx">0</span>/<span class="chitanda_all_num">0</span>
+                            <span class="chitanda_toggle_btn" style="cursor: pointer; font-size: 16px; user-select: none;" title="展开" data-target="chitanda_collapsible_wiki">▼</span>
                         </div>
-                        <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px;">已添加：</h4>
-                        <div class="chitanda_character_added_modal" style="min-height: 30px; max-height: 60px; overflow-y: auto; margin-bottom: 10px; padding: 5px; border: 1px dashed ${colors.border}; border-radius: 4px; width: 100%; box-sizing: border-box;"></div>
-                        <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px;">添加失败：</h4>
-                        <div class="chitanda_character_not_found" style="min-height:30px; margin-bottom: 10px;"></div>
+                        <div id="chitanda_collapsible_wiki" style="display: none;">
+                            <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px;">已添加：</h4>
+                            <div class="chitanda_character_added_modal" style="min-height: 30px; max-height: 60px; overflow-y: auto; margin-bottom: 10px; padding: 5px; border: 1px dashed ${colors.border}; border-radius: 4px; width: 100%; box-sizing: border-box;"></div>
+                            <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px;">添加失败：</h4>
+                            <div class="chitanda_character_not_found" style="min-height:30px; margin-bottom: 10px;"></div>
+                        </div>
                         <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px;">从条目获取角色</h4>
                         <div style="margin: 5px 0; padding: 5px; background: ${colors.inputBg}; display: flex; flex-direction: column; gap: 5px; border-radius: 4px; flex-shrink: 0; width: 100%; box-sizing: border-box;">
                             <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap; width: 100%;">
@@ -1945,6 +1983,9 @@ $(document).ready(function() {
                     return;
                 }
                 var inputVal = inputElement.value.trim();
+                
+                // 自动从URL中提取条目ID
+                inputVal = chitanda_extract_subject_id(inputVal);
                 
                 if (!inputVal) {
                     alert('请输入关联条目ID或名称');
