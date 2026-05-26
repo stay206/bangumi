@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WIKI通过条目快速关联角色
-// @version      1.5.1
+// @version      1.5.2
 // @description  通过条目快速关联角色
 // @author       Sumora、chitanda
 // @match        http*://bgm.tv/subject/*/add_related/character
@@ -238,7 +238,7 @@ $(document).ready(function() {
                         <span class="drag-handle"></span>
                         <p><a href="javascript:void(0);" class="h rr">x</a></p>
                         <p class="title">
-                            <a href="/character/${character_id}" class="l" target="_blank">${character_info.name || ''}</a>
+                            <a href="/character/${character_id}" class="l" target="_blank">${character_info.name || ''}</a>${character_info.nameCN ? ' <span class="tip">' + character_info.nameCN + '</span>' : ''}
                         </p>
                         <span class="tip">
                             <input type="hidden" name="infoArr[${characterIndex}][crt_id]" value="${character_id}">
@@ -544,6 +544,13 @@ $(document).ready(function() {
                             var $nameLink = $item.find('h2.subtitle a.l');
                             var name = $nameLink.text().trim();
                             
+                            // 提取角色中文名（如果有）
+                            var nameCN = '';
+                            var $nameCN = $item.find('h2.subtitle .tip');
+                            if ($nameCN.length > 0) {
+                                nameCN = $nameCN.text().trim();
+                            }
+                            
                             var id = '';
                             var $nameAnchor = $item.prev('a[name^="id_"]');
                             if ($nameAnchor.length > 0) {
@@ -591,7 +598,7 @@ $(document).ready(function() {
                             var image = $avatar.attr('src') || '';
                             
                             if (name && id) {
-                                character_info.push({name: name, image: image, id: id, cvIds: cvIds, cvNames: cvNames});
+                                character_info.push({name: name, nameCN: nameCN, image: image, id: id, cvIds: cvIds, cvNames: cvNames});
                             }
                         })
                         
@@ -600,6 +607,12 @@ $(document).ready(function() {
                             $html.find('h2.l').each(function() {
                                 var $link = $(this).find('a');
                                 var name = $link.text().trim();
+                                // 备用方案也提取角色中文名（如果有）
+                                var nameCN = '';
+                                var $nameCN = $(this).find('.tip');
+                                if ($nameCN.length > 0) {
+                                    nameCN = $nameCN.text().trim();
+                                }
                                 var href = $link.attr('href');
                                 var id = href ? href.match(/\/character\/(\d+)/) : null;
                                 id = id ? id[1] : '';
@@ -621,7 +634,7 @@ $(document).ready(function() {
                                     }
                                 });
                                 if (name && id) {
-                                    character_info.push({name: name, image: '', id: id, cvIds: cvIds, cvNames: cvNames});
+                                    character_info.push({name: name, nameCN: nameCN, image: '', id: id, cvIds: cvIds, cvNames: cvNames});
                                 }
                             });
                         }
@@ -725,13 +738,14 @@ $(document).ready(function() {
                         </a>
                         <div class="inner" style="flex: 1; min-width: 0;">
                             <p style="margin: 0; font-size: 13px; line-height: 1.4;">
-                                <span style="font-weight: 500; color: ${colors.text};">${character.name}${isDuplicate ? ' <span style="color: #999; font-size: 11px;">(已存在)</span>' : ''}</span>
+                                <span style="font-weight: 500; color: ${colors.text};">${character.name}${character.nameCN ? ' <span class="tip">' + character.nameCN + '</span>' : ''}${isDuplicate ? ' <span style="color: #999; font-size: 11px;">(已存在)</span>' : ''}</span>
                             </p>
                             <p style="margin: 2px 0 0 0; font-size: 11px; color: ${colors.subText}; line-height: 1.3;">
                                 <span>bgm_id=${character.id}</span>
                             </p>
                             ${cvSelectionHtml}
                         </div>
+                        <a href="/character/${character.id}" target="_blank" title="前往角色页面" style="display: flex; align-items: center; justify-content: center; min-width: 40px; height: 100%; border-radius: 4px; margin-left: auto; padding: 0 8px; flex-shrink: 0; color: #666; font-size: 16px; font-weight: bold; text-decoration: none;" onclick="event.stopPropagation();">>></a>
                     </li>
                 `;
             });
@@ -822,13 +836,14 @@ $(document).ready(function() {
                                 </a>
                                 <div class="inner" style="flex: 1; min-width: 0;">
                                     <p style="margin: 0; font-size: 13px; line-height: 1.4;">
-                                        <span style="font-weight: 500; color: ${colors.text};">${character.name}${isDuplicate ? ' <span style="color: #999; font-size: 11px;">(已存在)</span>' : ''}</span>
+                                        <span style="font-weight: 500; color: ${colors.text};">${character.name}${character.nameCN ? ' <span class="tip">' + character.nameCN + '</span>' : ''}${isDuplicate ? ' <span style="color: #999; font-size: 11px;">(已存在)</span>' : ''}</span>
                                     </p>
                                     <p style="margin: 2px 0 0 0; font-size: 11px; color: ${colors.subText}; line-height: 1.3;">
                                         <span>bgm_id=${character.id}</span>
                                     </p>
                                     ${cvSelectionHtml}
                                 </div>
+                                <a href="/character/${character.id}" target="_blank" title="前往角色页面" style="display: flex; align-items: center; justify-content: center; min-width: 40px; height: 100%; border-radius: 4px; margin-left: auto; padding: 0 8px; flex-shrink: 0; color: #666; font-size: 16px; font-weight: bold; text-decoration: none;" onclick="event.stopPropagation();">>></a>
                             </li>
                         `;
                     });
@@ -1163,6 +1178,12 @@ $(document).ready(function() {
         }
     });
 
+    // 添加删除按钮事件委托（修复动态添加的li无法删除问题）
+    $(document).on('click', 'li.has-handle .h.rr', function(e) {
+        e.preventDefault();
+        $(this).closest('li').remove();
+    });
+
     
     if (isAddRelatedPage) {
         var colors = getThemeColors();
@@ -1262,7 +1283,7 @@ $(document).ready(function() {
                  if (isChecked) {
                      $(this).hide();
                  } else {
-                     $(this).show();
+                     $(this).css('display', 'flex');
                  }
              });
          });
