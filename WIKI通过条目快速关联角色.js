@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WIKI通过条目快速关联角色
-// @version      1.6.0
+// @version      1.6.1
 // @description  通过条目快速关联角色
 // @author       Sumora、chitanda
 // @match        http*://bgm.tv/subject/*/add_related/character
@@ -2076,6 +2076,7 @@ $(document).ready(function() {
                 wikiPanel.id = 'chitanda_wiki_panel';
                 wikiPanel.style.flex = '1';
                 wikiPanel.style.minWidth = '300px';
+                wikiPanel.style.maxHeight = '800px';
                 wikiPanel.style.padding = '10px';
                 wikiPanel.style.border = '1px solid ' + colors.border;
                 wikiPanel.style.background = colors.bg;
@@ -2084,7 +2085,7 @@ $(document).ready(function() {
                 wikiPanel.style.overflow = 'auto';
                 
                 wikiPanel.innerHTML = `
-                    <div style="display: flex; flex-direction: column; height: 100%;">
+                    <div style="display: flex; flex-direction: column;">
                         <h3 style="margin-top: 0; color: ${colors.primary}; font-size: 14px;">关联条目角色</h3>
                         <fieldset style="margin: 10px 0; padding: 8px; border: 2px dashed ${colors.primary}; border-radius: 6px; flex-shrink: 0;">
                             <legend style="padding: 0 8px; font-weight: bold; color: ${colors.primary}; font-size: 12px;">快捷关联</legend>
@@ -2138,7 +2139,7 @@ $(document).ready(function() {
                             </div>
                         </div>
                         <div id="ctd_wiki_subject_info_modal" style="margin: 5px 0; padding: 5px; font-size: 12px; color: ${colors.subText}; flex-shrink: 0;"></div>
-                        <div id="ctd_wiki_search_results_modal" style="margin: 5px 0; padding: 5px; border: 1px solid ${colors.border}; background: ${colors.bg}; max-height: 150px; overflow-y: auto; display: none; width: 100%; box-sizing: border-box; flex-shrink: 0;"></div>
+                        <div id="ctd_wiki_search_results_modal" style="margin: 5px 0; padding: 5px; border: 1px solid ${colors.border}; background: ${colors.bg}; max-height: 200px; overflow-y: auto; display: none; width: 100%; box-sizing: border-box;"></div>
                         <hr style="margin: 10px 0; border: 0; border-top: 1px solid ${colors.border}; flex-shrink: 0;">
                         <h4 style="margin: 10px 0; color: ${colors.text}; font-size: 13px; flex-shrink: 0;">显示关联条目</h4>
                         <div style="margin: 5px 0; padding: 5px; background: ${colors.inputBg}; flex-shrink: 0;">
@@ -2149,7 +2150,7 @@ $(document).ready(function() {
                             </label>
                             <span id="ctd_wiki_related_status_modal" style="margin-left: 5px; font-size: 11px;"></span>
                         </div>
-                        <div id="ctd_wiki_related_subjects_modal" style="margin: 5px 0; max-height: 100px; overflow-y: auto; border: 1px solid ${colors.border}; padding: 10px; background: ${colors.bg};">
+                        <div id="ctd_wiki_related_subjects_modal" style="margin: 5px 0; border: 1px solid ${colors.border}; padding: 10px; background: ${colors.bg}; flex-shrink: 0;">
                         </div>
                     </div>
                 `;
