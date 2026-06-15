@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WIKI通过条目快速关联角色
-// @version      1.6.1
+// @version      1.6.2
 // @description  通过条目快速关联角色
 // @author       Sumora、chitanda
 // @match        http*://bgm.tv/subject/*/add_related/character
@@ -411,30 +411,45 @@ $(document).ready(function() {
                                                 crtTypeSelect.value = character_info.type;
                                             }
                                         }
-                                        for (let i = 1; i < character_info.cvIds.length; i++) {
-                                            const cvId = character_info.cvIds[i];
+                                        
+                                        // 顺序添加剩余的CV
+                                        if (character_info.cvIds.length > 1) {
+                                            const remainingCvIds = character_info.cvIds.slice(1);
+                                            const remainingCvNames = character_info.cvNames ? character_info.cvNames.slice(1) : [];
                                             
-                                            const addCvBtn = newRow.querySelector('.add-cv-btn');
-                                            if (addCvBtn) {
-                                                addCvBtn.click();
+                                            function addNextCv(cvIndex) {
+                                                if (cvIndex >= remainingCvIds.length) return;
                                                 
-                                                setTimeout(function() {
-                                                    const cvInputs = newRow.querySelectorAll('.cv-id');
-                                                    const lastInput = cvInputs[cvInputs.length - 1];
-                                                    if (lastInput) {
-                                                        lastInput.value = cvId;
-                                                        var addedModal = document.querySelector('.chitanda_character_added_modal');
-                                                        if (addedModal) {
-                                                            var cvName = character_info.cvNames && character_info.cvNames[i] ? character_info.cvNames[i] : cvId;
-                                                            addedModal.innerHTML += `<span style="color: ${colors.primary};">[${character_id}] ${character_info.name || ''} CV: ${cvName} (CV关联成功) </span>`;
-                                                            addedModal.scrollTop = addedModal.scrollHeight;
+                                                const cvId = remainingCvIds[cvIndex];
+                                                const addCvBtn = newRow.querySelector('.add-cv-btn');
+                                                
+                                                if (addCvBtn) {
+                                                    addCvBtn.click();
+                                                    
+                                                    setTimeout(function() {
+                                                        const cvInputs = newRow.querySelectorAll('.cv-id');
+                                                        const lastInput = cvInputs[cvInputs.length - 1];
+                                                        if (lastInput) {
+                                                            lastInput.value = cvId;
+                                                            var addedModal = document.querySelector('.chitanda_character_added_modal');
+                                                            if (addedModal) {
+                                                                var cvName = remainingCvNames[cvIndex] ? remainingCvNames[cvIndex] : cvId;
+                                                                addedModal.innerHTML += `<span style="color: ${colors.primary};">[${character_id}] ${character_info.name || ''} CV: ${cvName} (CV关联成功) </span>`;
+                                                                addedModal.scrollTop = addedModal.scrollHeight;
+                                                            }
                                                         }
-                                                    }
-                                                }, 500);
+                                                        
+                                                        addNextCv(cvIndex + 1);
+                                                    }, 600);
+                                                } else {
+                                                    addNextCv(cvIndex + 1);
+                                                }
                                             }
+                                            
+                                            addNextCv(0);
                                         }
                                     }
-                                }, 1000);
+                                }, 1200);
                             } else {
                                 newCrtIdInput.value = character_id;
                                 
@@ -975,6 +990,17 @@ $(document).ready(function() {
                     
                     $(this).remove();
                     
+                    // 更新其他列表中相同角色的去重状态
+                    var isDeduplicateChecked = $('#chitanda_deduplicate, #ctd_wiki_deduplicate_modal').is(':checked');
+                    var duplicateItems = $('#chitanda_subjectList li.clearit[data-char-id="' + charId + '"][data-is-duplicate="false"], #chitanda_subjectList_modal li.clearit[data-char-id="' + charId + '"][data-is-duplicate="false"]');
+                    
+                    duplicateItems.each(function() {
+                        $(this).attr('data-is-duplicate', 'true');
+                        if (isDeduplicateChecked) {
+                            $(this).hide();
+                        }
+                    });
+                    
                     if (!chitanda_is_associating) {
                         setTimeout(function() {
                             chitanda_process_association_queue();
@@ -1063,6 +1089,17 @@ $(document).ready(function() {
             chitanda_association_queue.push(selectedCharacter);
             
             $(this).remove();
+            
+            // 更新其他列表中相同角色的去重状态
+            var isDeduplicateChecked = $('#chitanda_deduplicate, #ctd_wiki_deduplicate_modal').is(':checked');
+            var duplicateItems = $('#chitanda_subjectList li.clearit[data-char-id="' + charId + '"][data-is-duplicate="false"], #chitanda_subjectList_modal li.clearit[data-char-id="' + charId + '"][data-is-duplicate="false"]');
+            
+            duplicateItems.each(function() {
+                $(this).attr('data-is-duplicate', 'true');
+                if (isDeduplicateChecked) {
+                    $(this).hide();
+                }
+            });
             
             if (!chitanda_is_associating) {
                 setTimeout(function() {
@@ -1468,21 +1505,6 @@ $(document).ready(function() {
             }
         });
         
-        $(document).on('change', '#chitanda_deduplicate, #ctd_wiki_deduplicate_modal', function() {
-             var isChecked = $(this).is(':checked');
-             var targetList = $(this).closest('.chitanda_character_wrapper, #chitanda_wiki_panel, #chitanda_character_selection_modal').find('li.clearit[data-char-id][data-is-duplicate="true"]');
-             if (targetList.length === 0) {
-                 targetList = $('#chitanda_subjectList li.clearit[data-char-id][data-is-duplicate="true"], #chitanda_subjectList_modal li.clearit[data-char-id][data-is-duplicate="true"]');
-             }
-             targetList.each(function() {
-                 if (isChecked) {
-                     $(this).hide();
-                 } else {
-                     $(this).css('display', 'flex');
-                 }
-             });
-         });
-        
         $('#btn_ctd_fetch_characters').on('click', function() {
             var inputVal = $('#chitanda_related_subject_id').val().trim();
             var searchType = $('#chitanda_search_type').val();
@@ -1638,6 +1660,20 @@ $(document).ready(function() {
             }
         });
     }
+    
+    $(document).on('change', '#chitanda_deduplicate, #ctd_wiki_deduplicate_modal', function() {
+         var isChecked = $(this).is(':checked');
+         
+         var targetList = $('#chitanda_subjectList li.clearit[data-char-id][data-is-duplicate="true"], #chitanda_subjectList_modal li.clearit[data-char-id][data-is-duplicate="true"]');
+         
+         targetList.each(function() {
+             if (isChecked) {
+                 $(this).hide();
+             } else {
+                 $(this).css('display', 'flex');
+             }
+         });
+     });
     
     var chitanda_FetchRelatedSubjects = function() {
         try {
@@ -2380,14 +2416,16 @@ $(document).ready(function() {
                             
                             // 添加其他CV（如果有）
                             if (cvIds.length > 1) {
-                                chitanda_add_cvs_to_row(newRow, cvIds.slice(1), characterId, character_info.name, colors, addedModal);
+                                setTimeout(function() {
+                                    chitanda_add_cvs_to_row(newRow, cvIds.slice(1), characterId, character_info.name, colors, addedModal);
+                                }, 300);
                             }
                             
                             $('.chitanda_quick_status_modal').text('角色 ' + characterId + ' 关联成功').css('color', '#090');
                         } else {
                             $('.chitanda_quick_status_modal').text('角色 ' + characterId + ' 添加失败').css('color', '#f00');
                         }
-                    }, 1000);
+                    }, 1200);
                 } else {
                     $('.chitanda_quick_status_modal').text('页面元素未找到').css('color', '#f00');
                 }
@@ -2400,28 +2438,69 @@ $(document).ready(function() {
         // 添加CV到行
         function chitanda_add_cvs_to_row(row, cvIds, characterId, characterName, colors, addedModal) {
             var cvIndex = 0;
+            var expectedInputCount = row.querySelectorAll('.cv-id').length;
             
             function addNextCv() {
                 if (cvIndex >= cvIds.length) return;
                 
                 var cvId = cvIds[cvIndex];
                 var addCvBtn = row.querySelector('.add-cv-btn');
+                
+                if (!addCvBtn) {
+                    row = document.querySelector(`tr[data-crt-id="${characterId}"]`);
+                    addCvBtn = row ? row.querySelector('.add-cv-btn') : null;
+                }
+                
                 if (addCvBtn) {
                     addCvBtn.click();
                     
-                    setTimeout(function() {
-                        var cvInputs = row.querySelectorAll('.cv-id');
-                        var lastInput = cvInputs[cvInputs.length - 1];
-                        if (lastInput) {
-                            lastInput.value = cvId;
-                            if (addedModal) {
-                                addedModal.innerHTML += `<span style="color: ${colors.primary};">[${characterId}] ${characterName || ''} CV: ${cvId} (CV关联成功) </span>`;
-                                addedModal.scrollTop = addedModal.scrollHeight;
+                    expectedInputCount++;
+                    
+                    // 使用循环重试机制确保输入框创建
+                    var retries = 0;
+                    var maxRetries = 5;
+                    
+                    function trySetCvId() {
+                        requestAnimationFrame(function() {
+                            var cvInputs = row.querySelectorAll('.cv-id');
+                            
+                            if (cvInputs.length >= expectedInputCount) {
+                                var targetInput = null;
+                                cvInputs.forEach(function(input) {
+                                    if (!targetInput && (!input.value || input.value === '' || input.value === 'ID')) {
+                                        targetInput = input;
+                                    }
+                                });
+                                
+                                if (targetInput) {
+                                    targetInput.value = cvId;
+                                    if (addedModal) {
+                                        addedModal.innerHTML += `<span style="color: ${colors.primary};">[${characterId}] ${characterName || ''} CV: ${cvId} (CV关联成功) </span>`;
+                                        addedModal.scrollTop = addedModal.scrollHeight;
+                                    }
+                                    cvIndex++;
+                                    setTimeout(addNextCv, 500);
+                                } else if (retries < maxRetries) {
+                                    retries++;
+                                    setTimeout(trySetCvId, 300);
+                                } else {
+                                    cvIndex++;
+                                    setTimeout(addNextCv, 300);
+                                }
+                            } else if (retries < maxRetries) {
+                                retries++;
+                                setTimeout(trySetCvId, 300);
+                            } else {
+                                cvIndex++;
+                                setTimeout(addNextCv, 300);
                             }
-                        }
-                        cvIndex++;
-                        addNextCv();
-                    }, 500);
+                        });
+                    }
+                    
+                    trySetCvId();
+                } else {
+                    cvIndex++;
+                    setTimeout(addNextCv, 300);
                 }
             }
             
