@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WIKI通过条目快速关联角色
-// @version      1.6.2
+// @version      1.7.0
 // @description  通过条目快速关联角色
 // @author       Sumora、chitanda
 // @match        http*://bgm.tv/subject/*/add_related/character
@@ -173,7 +173,8 @@ $(document).ready(function() {
         window.genPrsnStaffList = function() {};
     }
     
-    var ctd_findCharacterFunc = function(character_list, idx, callback) {
+    // 暴露给外部脚本使用的全局接口
+    window.ctd_findCharacterFunc = function(character_list, idx, callback) {
         try {
             if (!character_list || !Array.isArray(character_list) || character_list.length === 0) {
                 if (callback) callback();
@@ -526,6 +527,15 @@ $(document).ready(function() {
         }
     };
 
+    // 暴露给外部脚本使用的全局接口
+    window.chitanda_association_queue = chitanda_association_queue;
+    window.chitanda_is_associating = chitanda_is_associating;
+    window.isAddRelatedPage = isAddRelatedPage;
+    window.isSubjectPage = isSubjectPage;
+    window.getThemeColors = getThemeColors;
+    window.chitanda_process_association_queue = chitanda_process_association_queue;
+    window.chitanda_extract_subject_id = chitanda_extract_subject_id;
+    
     var chitanda_MultiFindCharacterFunc = function() {
         var ctd_character_list = $('#subjectName').val().split(/['\,，\/、']/);
         ctd_findCharacterFunc(ctd_character_list, 0);
@@ -1237,6 +1247,10 @@ $(document).ready(function() {
             }, 500); 
         });
     }
+    
+    // 更新全局引用，确保外部脚本调用时能访问最新的函数
+    window.chitanda_process_association_queue = chitanda_process_association_queue;
+    window.ctd_findCharacterFunc = ctd_findCharacterFunc;
 
     setupThemeObserver();
     
@@ -1249,6 +1263,9 @@ $(document).ready(function() {
         }
         return input;
     }
+    
+    // 暴露给外部脚本使用
+    window.chitanda_extract_subject_id = chitanda_extract_subject_id;
 
     $(document).on('click', '.chitanda_toggle_btn', function() {
         var targetId = $(this).data('target');
@@ -1274,24 +1291,6 @@ $(document).ready(function() {
         var colors = getThemeColors();
         $('.subjectListWrapper').after(`
             <div class="chitanda_character_wrapper">
-                <fieldset style="margin: 15px 0; padding: 10px; border: 2px dashed ${colors.primary}; border-radius: 8px; width: 306.34px;">
-                    <legend style="padding: 0 10px; font-weight: bold; color: ${colors.primary};">快捷关联</legend>
-                    <div id="chitanda_quick_link_area" style="padding: 15px; text-align: center; background: ${colors.inputBg}; border-radius: 4px; cursor: pointer; min-height: 40px; display: flex; align-items: center; justify-content: center;">
-                        <span style="color: ${colors.subText}; font-size: 12px;">拖拽角色链接到此处 或 点击粘贴剪贴板链接</span>
-                    </div>
-                    <div style="margin-top: 8px; display: flex; align-items: center; gap: 5px;">
-                        <span style="font-size: 12px; color: ${colors.text};">角色类型：</span>
-                        <select id="chitanda_quick_character_type" style="flex: 1; padding: 3px; border: 1px solid ${colors.border}; border-radius: 3px; background: ${colors.inputBg}; color: ${colors.text}; font-size: 12px;">
-                            <option value="1">主角</option>
-                            <option value="2">配角</option>
-                            <option value="3">客串</option>
-                            <option value="4">闲角</option>
-                            <option value="5">旁白</option>
-                            <option value="6">声库</option>
-                        </select>
-                    </div>
-                    <div class="chitanda_quick_status" style="margin-top: 5px; font-size: 12px; color: ${colors.subText}; min-height: 16px;"></div>
-                </fieldset>
                 <div class="chitanda_progress" style="margin: 15px 0;font-size:20px;font-weight:bold; color: ${colors.primary}; display: flex; align-items: center; gap: 8px;">
                     添加进度：<span class="chitanda_current_idx">0</span>/<span class="chitanda_all_num">0</span>
                     <span class="chitanda_toggle_btn" style="cursor: pointer; font-size: 16px; user-select: none;" title="展开" data-target="chitanda_collapsible_added">▼</span>
@@ -1333,177 +1332,6 @@ $(document).ready(function() {
     
     if (isAddRelatedPage) {
         $('#btn_ctd_fetch_related').on('click', chitanda_FetchRelatedSubjects);
-        
-        // 快捷关联功能
-        function chitanda_extract_character_id(input) {
-            if (!input) return null;
-            var urlPattern = /https?:\/\/(?:bgm\.tv|bangumi\.tv|chii\.in)\/character\/(\d+)/;
-            var match = input.match(urlPattern);
-            if (match) {
-                return match[1];
-            }
-            // 如果是纯数字，也认为是角色ID
-            if (/^\d+$/.test(input.trim())) {
-                return input.trim();
-            }
-            return null;
-        }
-        
-        function chitanda_quick_add_character(characterId) {
-            if (!characterId) {
-                $('.chitanda_quick_status').text('无效的角色ID').css('color', '#f00');
-                return;
-            }
-            
-            var characterType = $('#chitanda_quick_character_type').val();
-            var colors = getThemeColors();
-            
-            $('.chitanda_quick_status').text('正在关联角色 ' + characterId + ' ...').css('color', colors.primary);
-            
-            // 获取角色信息
-            fetch(`https://api.bgm.tv/v0/characters/${characterId}`, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                var character_info = {
-                    name: data.name || '',
-                    nameCN: data.name_cn || '',
-                    type: characterType || '1'
-                };
-                
-                if (isAddRelatedPage) {
-                    // 使用主功能相同的逻辑：直接创建li元素
-                    var crtRelateSubjects = document.getElementById('crtRelateSubjects');
-                    
-                    if (crtRelateSubjects) {
-                        var existingCrtIds = new Set();
-                        crtRelateSubjects.querySelectorAll('input[type="hidden"][name*="crt_id"]').forEach(function(input) {
-                            existingCrtIds.add(input.value);
-                        });
-                        
-                        if (existingCrtIds.has(String(characterId))) {
-                            $('.chitanda_quick_status').text('角色 ' + characterId + ' 已存在，跳过').css('color', '#999');
-                            return;
-                        }
-                        
-                        var index = crtRelateSubjects.querySelectorAll('li').length;
-                        var newLi = document.createElement('li');
-                        newLi.className = 'clearit has-handle';
-                        var charIndex = 'n' + index;
-                        var charType = character_info.type || '1';
-                        var selectOptions = '';
-                        var types = [
-                            { value: '1', label: '主角' },
-                            { value: '2', label: '配角' },
-                            { value: '3', label: '客串' },
-                            { value: '4', label: '闲角' },
-                            { value: '5', label: '旁白' },
-                            { value: '6', label: '声库' }
-                        ];
-                        types.forEach(function(type) {
-                            selectOptions += `<option value="${type.value}" ${charType === type.value ? 'selected' : ''}>${type.label}</option>`;
-                        });
-                        
-                        newLi.innerHTML = `
-                            <span class="drag-handle"></span>
-                            <p><a href="javascript:void(0);" class="h rr">x</a></p>
-                            <p class="title">
-                                <a href="/character/${characterId}" class="l" target="_blank">${character_info.name || ''}</a>${character_info.nameCN ? ' <span class="tip">' + character_info.nameCN + '</span>' : ''}
-                            </p>
-                            <span class="tip">
-                                <input type="hidden" name="infoArr[${charIndex}][crt_id]" value="${characterId}">
-                                类型: <select name="infoArr[${charIndex}][crt_type]" data-adjusted="true">
-                                    ${selectOptions}
-                                </select>
-                                <span class="tip_j"> 参与：</span>
-                                <input type="text" name="infoArr[${charIndex}][crt_appear_eps]" class="inputtext medium" value="">
-                                <label><span class="tip_j"> 剧透：</span><input type="checkbox" name="infoArr[${charIndex}][crt_spoiler]" value="1"></label>
-                                <span class="tip_j"> 排序：</span>
-                                <input type="text" name="infoArr[${charIndex}][crt_order]" value="0" class="inputtext item_sort" onfocus="this.select()" onmouseover="this.focus()" autocomplete="off">
-                            </span>
-                        `;
-                        
-                        crtRelateSubjects.insertBefore(newLi, crtRelateSubjects.firstChild);
-                        $('.chitanda_quick_status').text('角色 ' + characterId + ' 关联成功').css('color', '#090');
-                    } else {
-                        $('.chitanda_quick_status').text('页面元素未找到').css('color', '#f00');
-                    }
-                }
-            })
-            .catch(function(err) {
-                $('.chitanda_quick_status').text('获取角色信息失败: ' + err.message).css('color', '#f00');
-            });
-        }
-        
-        // 拖拽事件
-        $(document).on('dragover', '#chitanda_quick_link_area', function(e) {
-            e.preventDefault();
-            $(this).css('background', '#e0f0ff');
-        });
-        
-        $(document).on('dragleave', '#chitanda_quick_link_area', function(e) {
-            e.preventDefault();
-            var colors = getThemeColors();
-            $(this).css('background', colors.inputBg);
-        });
-        
-        $(document).on('drop', '#chitanda_quick_link_area', function(e) {
-            e.preventDefault();
-            var colors = getThemeColors();
-            $(this).css('background', colors.inputBg);
-            
-            var data = e.originalEvent.dataTransfer.getData('text/plain') || 
-                       e.originalEvent.dataTransfer.getData('text/uri-list') ||
-                       e.originalEvent.dataTransfer.getData('text/html');
-            
-            // 如果是HTML，尝试提取链接
-            if (data && data.includes('<a')) {
-                var hrefMatch = data.match(/href=["']([^"']+)["']/);
-                if (hrefMatch) {
-                    data = hrefMatch[1];
-                }
-            }
-            
-            var characterId = chitanda_extract_character_id(data);
-            if (characterId) {
-                chitanda_quick_add_character(characterId);
-            } else {
-                $('.chitanda_quick_status').text('无法识别角色链接').css('color', '#f00');
-            }
-        });
-        
-        // 点击粘贴剪贴板
-        $(document).on('click', '#chitanda_quick_link_area', function(e) {
-            var $area = $(this);
-            var colors = getThemeColors();
-            
-            if (navigator.clipboard && navigator.clipboard.readText) {
-                navigator.clipboard.readText().then(function(text) {
-                    var characterId = chitanda_extract_character_id(text);
-                    if (characterId) {
-                        chitanda_quick_add_character(characterId);
-                    } else {
-                        $('.chitanda_quick_status').text('剪贴板内容不是有效的角色链接').css('color', '#f00');
-                    }
-                }).catch(function(err) {
-                    $('.chitanda_quick_status').text('无法读取剪贴板，请手动粘贴').css('color', '#f00');
-                });
-            } else {
-                // 不支持剪贴板API，提示用户手动粘贴
-                var inputVal = prompt('请粘贴角色链接或ID：');
-                if (inputVal) {
-                    var characterId = chitanda_extract_character_id(inputVal);
-                    if (characterId) {
-                        chitanda_quick_add_character(characterId);
-                    } else {
-                        $('.chitanda_quick_status').text('无法识别角色链接').css('color', '#f00');
-                    }
-                }
-            }
-        });
         
         $('#btn_ctd_fetch_characters').on('click', function() {
             var inputVal = $('#chitanda_related_subject_id').val().trim();
@@ -2123,33 +1951,6 @@ $(document).ready(function() {
                 wikiPanel.innerHTML = `
                     <div style="display: flex; flex-direction: column;">
                         <h3 style="margin-top: 0; color: ${colors.primary}; font-size: 14px;">关联条目角色</h3>
-                        <fieldset style="margin: 10px 0; padding: 8px; border: 2px dashed ${colors.primary}; border-radius: 6px; flex-shrink: 0;">
-                            <legend style="padding: 0 8px; font-weight: bold; color: ${colors.primary}; font-size: 12px;">快捷关联</legend>
-                            <div style="margin-bottom: 6px;">
-                                <div id="chitanda_quick_cv_link_area_modal" style="padding: 8px; text-align: center; background: ${colors.inputBg}; border-radius: 4px; cursor: pointer; min-height: 24px; display: flex; align-items: center; justify-content: center;">
-                                    <span style="color: ${colors.subText}; font-size: 10px;">拖拽CV链接到此处 或 点击粘贴剪贴板链接（支持多个CV）</span>
-                                </div>
-                                <div style="margin-top: 4px; display: flex; align-items: center; gap: 4px;">
-                                    <span style="font-size: 10px; color: ${colors.text};">CV：</span>
-                                    <input type="text" id="chitanda_quick_cv_ids_modal" placeholder="CV ID" style="flex: 1; padding: 2px; border: 1px solid ${colors.border}; border-radius: 3px; background: ${colors.bg}; color: ${colors.text}; font-size: 10px; box-sizing: border-box;">
-                                </div>
-                            </div>
-                            <div id="chitanda_quick_link_area_modal" style="padding: 10px; text-align: center; background: ${colors.inputBg}; border-radius: 4px; cursor: pointer; min-height: 30px; display: flex; align-items: center; justify-content: center;">
-                                <span style="color: ${colors.subText}; font-size: 11px;">拖拽角色链接到此处 或 点击粘贴剪贴板链接</span>
-                            </div>
-                            <div style="margin-top: 6px; display: flex; align-items: center; gap: 5px;">
-                                <span style="font-size: 11px; color: ${colors.text};">类型：</span>
-                                <select id="chitanda_quick_character_type_modal" style="flex: 1; padding: 2px; border: 1px solid ${colors.border}; border-radius: 3px; background: ${colors.inputBg}; color: ${colors.text}; font-size: 11px;">
-                                    <option value="1">主角</option>
-                                    <option value="2">配角</option>
-                                    <option value="3">客串</option>
-                                    <option value="4">闲角</option>
-                                    <option value="5">旁白</option>
-                                    <option value="6">声库</option>
-                                </select>
-                            </div>
-                            <div class="chitanda_quick_status_modal" style="margin-top: 4px; font-size: 11px; color: ${colors.subText}; min-height: 14px;"></div>
-                        </fieldset>
                         <div class="chitanda_progress" style="margin: 10px 0;font-size:12px;font-weight:bold; color: ${colors.primary}; display: flex; align-items: center; gap: 8px;">
                             添加进度：<span class="chitanda_current_idx">0</span>/<span class="chitanda_all_num">0</span>
                             <span class="chitanda_toggle_btn" style="cursor: pointer; font-size: 16px; user-select: none;" title="展开" data-target="chitanda_collapsible_wiki">▼</span>
@@ -2215,362 +2016,6 @@ $(document).ready(function() {
     }
     
     function bindModalEvents() {
-        // 提取角色ID函数
-        function chitanda_extract_character_id_modal(input) {
-            if (!input) return null;
-            var urlPattern = /https?:\/\/(?:bgm\.tv|bangumi\.tv|chii\.in)\/character\/(\d+)/;
-            var match = input.match(urlPattern);
-            if (match) {
-                return match[1];
-            }
-            if (/^\d+$/.test(input.trim())) {
-                return input.trim();
-            }
-            return null;
-        }
-        
-        // 提取CV ID函数
-        function chitanda_extract_cv_id_modal(input) {
-            if (!input) return null;
-            var urlPattern = /https?:\/\/(?:bgm\.tv|bangumi\.tv|chii\.in)\/person\/(\d+)/;
-            var match = input.match(urlPattern);
-            if (match) {
-                return match[1];
-            }
-            if (/^\d+$/.test(input.trim())) {
-                return input.trim();
-            }
-            return null;
-        }
-        
-        // 添加CV ID到输入框
-        function chitanda_add_cv_id_to_input(cvId) {
-            var cvInput = document.getElementById('chitanda_quick_cv_ids_modal');
-            if (cvInput) {
-                var currentVal = cvInput.value.trim();
-                if (currentVal) {
-                    // 检查是否已存在
-                    var ids = currentVal.split(',').map(function(id) { return id.trim(); });
-                    if (ids.indexOf(cvId) === -1) {
-                        cvInput.value = currentVal + ',' + cvId;
-                    }
-                } else {
-                    cvInput.value = cvId;
-                }
-            }
-        }
-        
-        // 获取CV ID列表
-        function chitanda_get_cv_ids_modal() {
-            var cvInput = document.getElementById('chitanda_quick_cv_ids_modal');
-            if (cvInput && cvInput.value.trim()) {
-                return cvInput.value.split(',').map(function(id) { return id.trim(); }).filter(function(id) { return id; });
-            }
-            return [];
-        }
-        
-        // CV框拖拽/点击事件
-        var cvLinkAreaModal = document.getElementById('chitanda_quick_cv_link_area_modal');
-        if (cvLinkAreaModal) {
-            cvLinkAreaModal.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.style.background = '#ffe0b2';
-            });
-            
-            cvLinkAreaModal.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                var colors = getThemeColors();
-                this.style.background = colors.inputBg;
-            });
-            
-            cvLinkAreaModal.addEventListener('drop', function(e) {
-                e.preventDefault();
-                var colors = getThemeColors();
-                this.style.background = colors.inputBg;
-                
-                var data = e.dataTransfer.getData('text/plain') || 
-                           e.dataTransfer.getData('text/uri-list') ||
-                           e.dataTransfer.getData('text/html');
-                
-                if (data && data.includes('<a')) {
-                    var hrefMatch = data.match(/href=["']([^"']+)["']/);
-                    if (hrefMatch) {
-                        data = hrefMatch[1];
-                    }
-                }
-                
-                var cvId = chitanda_extract_cv_id_modal(data);
-                if (cvId) {
-                    chitanda_add_cv_id_to_input(cvId);
-                    $('.chitanda_quick_status_modal').text('CV ' + cvId + ' 已添加').css('color', '#090');
-                } else {
-                    $('.chitanda_quick_status_modal').text('无法识别CV链接').css('color', '#f00');
-                }
-            });
-            
-            cvLinkAreaModal.addEventListener('click', function(e) {
-                if (navigator.clipboard && navigator.clipboard.readText) {
-                    navigator.clipboard.readText().then(function(text) {
-                        var cvId = chitanda_extract_cv_id_modal(text);
-                        if (cvId) {
-                            chitanda_add_cv_id_to_input(cvId);
-                            $('.chitanda_quick_status_modal').text('CV ' + cvId + ' 已添加').css('color', '#090');
-                        } else {
-                            $('.chitanda_quick_status_modal').text('剪贴板内容不是有效的CV链接').css('color', '#f00');
-                        }
-                    }).catch(function(err) {
-                        $('.chitanda_quick_status_modal').text('无法读取剪贴板').css('color', '#f00');
-                    });
-                } else {
-                    var inputVal = prompt('请粘贴CV链接或ID：');
-                    if (inputVal) {
-                        var cvId = chitanda_extract_cv_id_modal(inputVal);
-                        if (cvId) {
-                            chitanda_add_cv_id_to_input(cvId);
-                            $('.chitanda_quick_status_modal').text('CV ' + cvId + ' 已添加').css('color', '#090');
-                        } else {
-                            $('.chitanda_quick_status_modal').text('无法识别CV链接').css('color', '#f00');
-                        }
-                    }
-                }
-            });
-        }
-        
-        // 模态面板快捷关联功能
-        function chitanda_quick_add_character_modal(characterId) {
-            if (!characterId) {
-                $('.chitanda_quick_status_modal').text('无效的角色ID').css('color', '#f00');
-                return;
-            }
-            
-            var characterType = $('#chitanda_quick_character_type_modal').val();
-            var cvIds = chitanda_get_cv_ids_modal();
-            var colors = getThemeColors();
-            
-            $('.chitanda_quick_status_modal').text('正在关联角色 ' + characterId + ' ...').css('color', colors.primary);
-            
-            // 获取角色信息
-            fetch(`https://api.bgm.tv/v0/characters/${characterId}`, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                var character_info = {
-                    name: data.name || '',
-                    nameCN: data.name_cn || '',
-                    type: characterType || '1',
-                    cvIds: cvIds
-                };
-                
-                const newCrtIdInput = document.getElementById('new-crt-id');
-                const bgmBtnAddRow = document.getElementById('bgm-btn-add-row');
-                
-                if (newCrtIdInput && bgmBtnAddRow) {
-                    const existingRow = document.querySelector(`tr[data-crt-id="${characterId}"]`);
-                    var addedModal = document.querySelector('.chitanda_character_added_modal');
-                    
-                    if (existingRow) {
-                        // 设置角色类型
-                        if (character_info.type) {
-                            const crtTypeSelect = existingRow.querySelector('select.crt-type');
-                            if (crtTypeSelect) {
-                                crtTypeSelect.value = character_info.type;
-                            }
-                        }
-                        
-                        // 添加CV（如果有）
-                        if (cvIds.length > 0) {
-                            chitanda_add_cvs_to_row(existingRow, cvIds, characterId, character_info.name, colors, addedModal);
-                        }
-                        
-                        $('.chitanda_quick_status_modal').text('角色 ' + characterId + ' 已存在').css('color', '#090');
-                        return;
-                    }
-                    
-                    newCrtIdInput.value = characterId;
-                    
-                    const newCvIdInput = document.getElementById('new-cv-id');
-                    if (newCvIdInput) {
-                        newCvIdInput.value = cvIds.length > 0 ? cvIds[0] : '';
-                    }
-                    
-                    bgmBtnAddRow.click();
-                    
-                    if (addedModal) {
-                        addedModal.innerHTML += `<span style="color: ${colors.primary};">[${characterId}] ${character_info.name || ''} (添加成功) </span>`;
-                        addedModal.scrollTop = addedModal.scrollHeight;
-                    }
-                    
-                    setTimeout(function() {
-                        const newRow = document.querySelector(`tr[data-crt-id="${characterId}"]`);
-                        if (newRow) {
-                            // 设置角色类型
-                            if (character_info.type) {
-                                const crtTypeSelect = newRow.querySelector('select.crt-type');
-                                if (crtTypeSelect) {
-                                    crtTypeSelect.value = character_info.type;
-                                }
-                            }
-                            
-                            // 添加其他CV（如果有）
-                            if (cvIds.length > 1) {
-                                setTimeout(function() {
-                                    chitanda_add_cvs_to_row(newRow, cvIds.slice(1), characterId, character_info.name, colors, addedModal);
-                                }, 300);
-                            }
-                            
-                            $('.chitanda_quick_status_modal').text('角色 ' + characterId + ' 关联成功').css('color', '#090');
-                        } else {
-                            $('.chitanda_quick_status_modal').text('角色 ' + characterId + ' 添加失败').css('color', '#f00');
-                        }
-                    }, 1200);
-                } else {
-                    $('.chitanda_quick_status_modal').text('页面元素未找到').css('color', '#f00');
-                }
-            })
-            .catch(function(err) {
-                $('.chitanda_quick_status_modal').text('获取角色信息失败').css('color', '#f00');
-            });
-        }
-        
-        // 添加CV到行
-        function chitanda_add_cvs_to_row(row, cvIds, characterId, characterName, colors, addedModal) {
-            var cvIndex = 0;
-            var expectedInputCount = row.querySelectorAll('.cv-id').length;
-            
-            function addNextCv() {
-                if (cvIndex >= cvIds.length) return;
-                
-                var cvId = cvIds[cvIndex];
-                var addCvBtn = row.querySelector('.add-cv-btn');
-                
-                if (!addCvBtn) {
-                    row = document.querySelector(`tr[data-crt-id="${characterId}"]`);
-                    addCvBtn = row ? row.querySelector('.add-cv-btn') : null;
-                }
-                
-                if (addCvBtn) {
-                    addCvBtn.click();
-                    
-                    expectedInputCount++;
-                    
-                    // 使用循环重试机制确保输入框创建
-                    var retries = 0;
-                    var maxRetries = 5;
-                    
-                    function trySetCvId() {
-                        requestAnimationFrame(function() {
-                            var cvInputs = row.querySelectorAll('.cv-id');
-                            
-                            if (cvInputs.length >= expectedInputCount) {
-                                var targetInput = null;
-                                cvInputs.forEach(function(input) {
-                                    if (!targetInput && (!input.value || input.value === '' || input.value === 'ID')) {
-                                        targetInput = input;
-                                    }
-                                });
-                                
-                                if (targetInput) {
-                                    targetInput.value = cvId;
-                                    if (addedModal) {
-                                        addedModal.innerHTML += `<span style="color: ${colors.primary};">[${characterId}] ${characterName || ''} CV: ${cvId} (CV关联成功) </span>`;
-                                        addedModal.scrollTop = addedModal.scrollHeight;
-                                    }
-                                    cvIndex++;
-                                    setTimeout(addNextCv, 500);
-                                } else if (retries < maxRetries) {
-                                    retries++;
-                                    setTimeout(trySetCvId, 300);
-                                } else {
-                                    cvIndex++;
-                                    setTimeout(addNextCv, 300);
-                                }
-                            } else if (retries < maxRetries) {
-                                retries++;
-                                setTimeout(trySetCvId, 300);
-                            } else {
-                                cvIndex++;
-                                setTimeout(addNextCv, 300);
-                            }
-                        });
-                    }
-                    
-                    trySetCvId();
-                } else {
-                    cvIndex++;
-                    setTimeout(addNextCv, 300);
-                }
-            }
-            
-            addNextCv();
-        }
-        
-        // 角色框拖拽/点击事件
-        var quickLinkAreaModal = document.getElementById('chitanda_quick_link_area_modal');
-        if (quickLinkAreaModal) {
-            quickLinkAreaModal.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.style.background = '#e0f0ff';
-            });
-            
-            quickLinkAreaModal.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                var colors = getThemeColors();
-                this.style.background = colors.inputBg;
-            });
-            
-            quickLinkAreaModal.addEventListener('drop', function(e) {
-                e.preventDefault();
-                var colors = getThemeColors();
-                this.style.background = colors.inputBg;
-                
-                var data = e.dataTransfer.getData('text/plain') || 
-                           e.dataTransfer.getData('text/uri-list') ||
-                           e.dataTransfer.getData('text/html');
-                
-                if (data && data.includes('<a')) {
-                    var hrefMatch = data.match(/href=["']([^"']+)["']/);
-                    if (hrefMatch) {
-                        data = hrefMatch[1];
-                    }
-                }
-                
-                var characterId = chitanda_extract_character_id_modal(data);
-                if (characterId) {
-                    chitanda_quick_add_character_modal(characterId);
-                } else {
-                    $('.chitanda_quick_status_modal').text('无法识别角色链接').css('color', '#f00');
-                }
-            });
-            
-            quickLinkAreaModal.addEventListener('click', function(e) {
-                if (navigator.clipboard && navigator.clipboard.readText) {
-                    navigator.clipboard.readText().then(function(text) {
-                        var characterId = chitanda_extract_character_id_modal(text);
-                        if (characterId) {
-                            chitanda_quick_add_character_modal(characterId);
-                        } else {
-                            $('.chitanda_quick_status_modal').text('剪贴板内容不是有效的角色链接').css('color', '#f00');
-                        }
-                    }).catch(function(err) {
-                        $('.chitanda_quick_status_modal').text('无法读取剪贴板').css('color', '#f00');
-                    });
-                } else {
-                    var inputVal = prompt('请粘贴角色链接或ID：');
-                    if (inputVal) {
-                        var characterId = chitanda_extract_character_id_modal(inputVal);
-                        if (characterId) {
-                            chitanda_quick_add_character_modal(characterId);
-                        } else {
-                            $('.chitanda_quick_status_modal').text('无法识别角色链接').css('color', '#f00');
-                        }
-                    }
-                }
-            });
-        }
-        
         const fetchCharsBtn = document.getElementById('ctd_wiki_btn_fetch_characters_modal');
         if (fetchCharsBtn) {
             fetchCharsBtn.addEventListener('click', function() {
@@ -2723,7 +2168,7 @@ $(document).ready(function() {
                             document.getElementById('ctd_wiki_search_results_modal').style.display = 'none';
                         }
                     })
-                    。catch(error => {
+                    .catch(error => {
                         document.getElementById('ctd_wiki_subject_info_modal').textContent = '搜索出错，请检查网络连接';
                         document.getElementById('ctd_wiki_search_results_modal').style.display = 'none';
                     });
