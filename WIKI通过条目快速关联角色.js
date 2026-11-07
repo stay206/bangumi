@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WIKI通过条目快速关联角色
-// @version      1.7.0
+// @version      1.8.0
 // @description  通过条目快速关联角色
 // @author       Sumora、chitanda
 // @match        http*://bgm.tv/subject/*/add_related/character
@@ -1215,20 +1215,37 @@ $(document).ready(function() {
             
             var colors = getThemeColors();
             if ($('.chitanda_progress').length > 0) {
-                var progressText = $('.chitanda_progress').text();
-                $('.chitanda_progress').append(` <span style="color: #4caf50; font-size: 14px;">? 添加完成！</span>`);
-                
-                setTimeout(function() {
-                    $('.chitanda_progress').find('span:last-child').fadeOut(2000, function() {
-                        $(this).remove();
+                $('.chitanda_progress').each(function() {
+                    var $progress = $(this);
+                    $progress.find('.chitanda_added_tip').stop(true, true).remove();
+                    $progress.css('position', 'relative');
+                    var $tip = $('<span class="chitanda_added_tip">\u2713 添加完成！</span>').css({
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        background: colors.bg,
+                        color: '#4caf50',
+                        zIndex: 1,
+                        pointerEvents: 'none'
                     });
-                }, 3000);
+                    $progress.append($tip);
+                    setTimeout(function() {
+                        $tip.fadeOut(2000, function() {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                });
             }
             
             return;
         }
         
         chitanda_is_associating = true;
+        $('.chitanda_progress').find('.chitanda_added_tip').stop(true, true).remove();
         
         var totalCharacters = chitanda_association_queue.length + 1;
         
